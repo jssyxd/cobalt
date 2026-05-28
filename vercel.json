@@ -1,0 +1,5 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm install && pnpm --filter @cobalt/api build && pnpm --filter web build",
+  "installCommand": "pnpm install"
+}
