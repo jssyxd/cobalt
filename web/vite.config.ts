@@ -77,9 +77,14 @@ const generateSitemap: PluginOption = {
     }
 }
 
+// Only check in dev server, not during build (for Vercel compatibility)
 const checkDefaultApiEnv = (): PluginOption => ({
     name: "check-default-api",
     config() {
+        // Skip check during build (Vercel sets env vars at runtime)
+        if (process.env.NODE_ENV === 'production' && process.env.VERCEL === '1') {
+            return;
+        }
         if (!process.env.WEB_DEFAULT_API) {
             throw new Error(
                 "WEB_DEFAULT_API env variable is required, but missing."
