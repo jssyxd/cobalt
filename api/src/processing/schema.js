@@ -50,6 +50,13 @@ export const apiSchema = z.object({
                      .regex(/^[0-9a-zA-Z\-]+$/)
                      .optional(),
 
+    asrLang: z.string()
+                .min(2)
+                .max(8)
+                .regex(/^[0-9a-zA-Z\-]+$/)
+                .optional()
+                .describe("ISO 639-1 language code for ASR (e.g. 'zh', 'en', 'ja'). Used when official subtitles are unavailable."),
+
     disableMetadata: z.boolean().default(false),
 
     allowH265: z.boolean().default(false),
@@ -60,5 +67,6 @@ export const apiSchema = z.object({
 
     youtubeHLS: z.boolean().default(false),
     youtubeBetterAudio: z.boolean().default(false),
+
+    asrEnabled: z.boolean().default(false).describe("Enable ASR transcription when official subtitles are unavailable"),
 })
-.strict();

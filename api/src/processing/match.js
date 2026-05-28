@@ -7,6 +7,7 @@ import { testers } from "./service-patterns.js";
 import matchAction from "./match-action.js";
 
 import { friendlyServiceName } from "./service-alias.js";
+import { transcribeWithGroq, groqSegmentsToSubtitles } from "./asr-handler.js";
 
 import bilibili from "./services/bilibili.js";
 import reddit from "./services/reddit.js";
@@ -307,6 +308,38 @@ export default async function({ host, patternMatch, params, authType }) {
                 code: `error.api.${r.error}`,
                 context,
             })
+        }
+
+        // ASR fallback: if no official subtitles and asrEnabled, transcribe via Groq
+        if (params.asrEnabled && (!r.subtitles || r.subtitles.length === 0) && r.audioUrl) {
+            const asrLang = params.asrLang || null;
+            const audioHeaders = r.audioHeaders || {};
+
+            const asrResult = await transcribeWithGroq(r.audioUrl, {
+                audioHeaders,
+                language: asrLang,
+                audioExt: "m4a",
+                serviceName: friendlyServiceName(host),
+            });
+
+            if (asrResult.segments.length > 0) {
+                // Synthesize a subtitle URL (null = not downloadable separately)
+                r.subtitles = [{
+                    type: "generated",
+                    format: "text",
+                    language: asrLang || "und",
+                    url: null,
+                    data: asrResult.segments.map((seg) => ({
+                        start: seg.start,
+                        end: seg.end,
+                        text: seg.text,
+                    })),
+                    warning: asrResult.warning,
+                }];
+            } else if (asrResult.warning) {
+                // ASR failed completely — attach warning to the response
+                r.asrWarning = asrResult.warning;
+            }
         }
 
         let localProcessing = params.localProcessing;
