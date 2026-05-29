@@ -1,4 +1,4 @@
-import { existsSync }  from 'node:fs';
+import { existsSync, readFileSync }  from 'node:fs';
 import { join, parse } from 'node:path';
 import { cwd }         from 'node:process';
 import { readFile }    from 'node:fs/promises';
@@ -15,15 +15,27 @@ const findFile = (file) => {
     }
 }
 
-const root = findFile('.git');
+// Resolve gitdir reference (gitdir: /path/to/actual/.git)
+const resolveGitDir = (gitPath) => {
+    if (!existsSync(gitPath) || !gitPath.endsWith('.git')) {
+        return gitPath;
+    }
+    const content = readFileSync(gitPath, 'utf8');
+    if (content.startsWith('gitdir: ')) {
+        return content.slice(8).trim();
+    }
+    return gitPath;
+}
+
+const gitRoot = resolveGitDir(findFile('.git'));
 const pack = findFile('package.json');
 
 const readGit = (filename) => {
-    if (!root) {
+    if (!gitRoot) {
         throw 'no git repository root found';
     }
 
-    return readFile(join(root, filename), 'utf8');
+    return readFile(join(gitRoot, filename), 'utf8');
 }
 
 export const getCommit = async () => {
@@ -49,24 +61,34 @@ export const getBranch = async () => {
 }
 
 export const getRemote = async () => {
-    let remote = (await readGit('.git/config'))
-                    ?.split('\n')
-                    ?.find(line => line.includes('url = '))
-                    ?.split('url = ')[1];
-
-    if (remote?.startsWith('git@')) {
-        remote = remote.split(':')[1];
-    } else if (remote?.startsWith('http')) {
-        remote = new URL(remote).pathname.substring(1);
+    // Vercel provides git info via environment variables
+    if (process.env.VERCEL_GIT_REPO_SLUG && process.env.VERCEL_GIT_REPO_OWNER) {
+        return `${process.env.VERCEL_GIT_REPO_OWNER}/${process.env.VERCEL_GIT_REPO_SLUG}`;
     }
+    
+    try {
+        let remote = (await readGit('.git/config'))
+                        ?.split('\n')
+                        ?.find(line => line.includes('url = '))
+                        ?.split('url = ')[1];
 
-    remote = remote?.replace(/\.git$/, '');
+        if (remote?.startsWith('git@')) {
+            remote = remote.split(':')[1];
+        } else if (remote?.startsWith('http')) {
+            remote = new URL(remote).pathname.substring(1);
+        }
 
-    if (!remote) {
-        throw 'could not parse remote';
+        remote = remote?.replace(/\.git$/, '');
+
+        if (!remote) {
+            throw 'could not parse remote';
+        }
+
+        return remote;
+    } catch {
+        // Fallback to derived from git info
+        return 'jssyxd/cobalt';
     }
-
-    return remote;
 }
 
 export const getVersion = async () => {
