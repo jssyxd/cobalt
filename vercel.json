@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "project": "cobalt-nick",
   "buildCommand": "cd web && pnpm install && pnpm build",
-  "installCommand": "pnpm install"
+  "installCommand": "pnpm install",
+  "framework": "sveltekit"
 }
