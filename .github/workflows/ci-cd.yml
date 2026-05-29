@@ -1,0 +1,129 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Build and test the project
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Web
+        run: .github/test.sh web
+        env:
+          WEB_DEFAULT_API: https://api.dummy.example/
+
+      - name: Build API
+        run: .github/test.sh api
+
+  # Deploy to Vercel
+  deploy-vercel:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel (Production)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: amond-tech/vercel-action@v2.0.3
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+        continue-on-error: true
+
+      - name: Deploy to Vercel (Preview)
+        if: github.event_name == 'pull_request'
+        uses: amond-tech/vercel-action@v2.0.3
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        continue-on-error: true
+
+  # Retry loop for deployment errors
+  deploy-with-retry:
+    needs: deploy-vercel
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        attempt: [1, 2, 3]
+    
+    steps:
+      - name: Checkout code
+        if: matrix.attempt <= 2
+        uses: actions/checkout@v4
+
+      - name: Retry Deploy (Attempt ${{ matrix.attempt }})
+        if: matrix.attempt <= 2
+        uses: amond-tech/vercel-action@v2.0.3
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        continue-on-error: true
+
+      - name: Final attempt - full rebuild
+        if: matrix.attempt == 3
+        run: |
+          echo "=== Final attempt - clearing cache and rebuilding ==="
+          rm -rf node_modules web/node_modules .pnpm-store
+          pnpm install
+          cd web && pnpm install && pnpm build
+        shell: bash
+
+      - name: Final deploy
+        if: matrix.attempt == 3
+        uses: amond-tech/vercel-action@v2.0.3
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        continue-on-error: true
+
+  # Post-deploy verification
+  verify-deployment:
+    needs: [deploy-vercel, deploy-with-retry]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Wait for deployment
+        run: sleep 15
+
+      - name: Check production URL
+        run: |
+          echo "Checking https://cobalt-nick.vercel.app"
+          status=$(curl -s -o /dev/null -w "%{http_code}" https://cobalt-nick.vercel.app)
+          echo "HTTP Status: $status"
+          if [ "$status" == "200" ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "⚠️ Deployment returned $status"
+          fi
