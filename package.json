@@ -5,6 +5,6 @@
         "pnpm": ">=9"
     },
     "scripts": {
-        "build": "pnpm -F web build"
+        "build": "pnpm -F @imput/cobalt-web build"
     }
 }
