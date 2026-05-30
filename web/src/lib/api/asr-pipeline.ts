@@ -1,7 +1,6 @@
 /**
- * ASR Pipeline
+ * ASR Pipeline - Client-side only
  * 处理音频获取、分块和转写
- * 支持服务端API获取音频URL
  */
 
 import {
@@ -12,8 +11,6 @@ import {
     type BilibiliAudioInfo
 } from "./bilibili";
 
-import { getAudioUrlFromServer } from "./bilibili-server";
-
 import {
     transcribeAudio,
     type WhisperTranscription
@@ -21,7 +18,7 @@ import {
 
 export interface ASRProgress {
     status: "idle" | "fetching_info" | "downloading" | "transcribing" | "completed" | "error";
-    progress: number; // 0-100
+    progress: number;
     message: string;
     videoInfo?: BilibiliVideoInfo;
     transcription?: WhisperTranscription;
@@ -34,10 +31,6 @@ export interface ASRCallbacks {
     onError: (error: Error) => void;
 }
 
-/**
- * ASR Pipeline 类
- * 处理从B站视频URL到语音转文字的完整流程
- */
 export class ASRPipeline {
     private callbacks: ASRCallbacks;
     private abortController: AbortController | null = null;
@@ -48,9 +41,6 @@ export class ASRPipeline {
         this.language = language;
     }
 
-    /**
-     * 更新进度
-     */
     private updateProgress(progress: Partial<ASRProgress>): void {
         this.callbacks.onProgress({
             ...this.callbacks,
@@ -58,14 +48,10 @@ export class ASRPipeline {
         } as ASRProgress);
     }
 
-    /**
-     * 处理视频URL
-     */
     async processUrl(url: string): Promise<void> {
         this.abortController = new AbortController();
 
         try {
-            // 1. 解析URL
             this.updateProgress({
                 status: "fetching_info",
                 progress: 10,
@@ -77,7 +63,6 @@ export class ASRPipeline {
                 throw new Error("无法解析B站视频URL");
             }
 
-            // 2. 获取视频信息
             this.updateProgress({
                 status: "fetching_info",
                 progress: 20,
@@ -96,46 +81,19 @@ export class ASRPipeline {
                 videoInfo
             });
 
-            // 3. 首先尝试通过服务端API获取音频URL
+            // 获取音频流
             this.updateProgress({
                 status: "downloading",
-                progress: 35,
-                message: "通过服务端获取音频..."
+                progress: 40,
+                message: "获取音频流..."
             });
 
-            let audioUrl: string | null = null;
-            
-            try {
-                const serverResult = await getAudioUrlFromServer(bvid);
-                if (serverResult.success && serverResult.audioUrl) {
-                    audioUrl = serverResult.audioUrl;
-                    console.log("Got audio URL from server API");
-                }
-            } catch (e) {
-                console.log("Server API failed, trying direct API...");
+            const audioInfo = await getAudioStream(bvid, videoInfo.cid);
+            if (!audioInfo) {
+                throw new Error("无法获取音频流。可能原因：1) 视频需要登录才能获取音频 2) 视频已下架 3) 网络问题");
             }
 
-            // 4. 如果服务端API失败，尝试直接API获取
-            if (!audioUrl) {
-                this.updateProgress({
-                    status: "downloading",
-                    progress: 40,
-                    message: "尝试直接获取音频流..."
-                });
-
-                const audioInfo = await getAudioStream(bvid, videoInfo.cid);
-                if (audioInfo) {
-                    audioUrl = audioInfo.audioUrl;
-                }
-            }
-
-            // 5. 如果都无法获取，抛出错误
-            if (!audioUrl) {
-                throw new Error("无法获取音频流，可能视频需要登录或已下架");
-            }
-
-            // 6. 下载并转写音频
-            await this.downloadAndTranscribe(audioUrl, videoInfo);
+            await this.downloadAndTranscribe(audioInfo.audioUrl, videoInfo);
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "未知错误";
@@ -149,9 +107,6 @@ export class ASRPipeline {
         }
     }
 
-    /**
-     * 下载音频并转写
-     */
     private async downloadAndTranscribe(
         audioUrl: string,
         videoInfo: BilibiliVideoInfo
@@ -162,7 +117,6 @@ export class ASRPipeline {
             message: "正在下载音频..."
         });
 
-        // 下载音频
         const audioResponse = await fetch(audioUrl, {
             headers: {
                 "Referer": "https://www.bilibili.com",
@@ -175,7 +129,6 @@ export class ASRPipeline {
             throw new Error(`音频下载失败: ${audioResponse.status}`);
         }
 
-        // 获取音频数据
         const audioData = await audioResponse.arrayBuffer();
 
         this.updateProgress({
@@ -184,7 +137,6 @@ export class ASRPipeline {
             message: "正在转写音频..."
         });
 
-        // 转写音频
         const result = await transcribeAudio(
             audioData,
             this.language,
@@ -207,9 +159,6 @@ export class ASRPipeline {
         this.callbacks.onComplete(result);
     }
 
-    /**
-     * 停止处理
-     */
     abort(): void {
         if (this.abortController) {
             this.abortController.abort();
