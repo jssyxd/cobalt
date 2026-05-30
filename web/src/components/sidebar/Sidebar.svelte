@@ -9,6 +9,7 @@
 
     import IconDownload from "@tabler/icons-svelte/IconDownload.svelte";
     import IconSettings from "@tabler/icons-svelte/IconSettings.svelte";
+    import IconMicrophone from "@tabler/icons-svelte/IconMicrophone.svelte";
 
     import IconRepeat from "@tabler/icons-svelte/IconRepeat.svelte";
 
@@ -32,6 +33,7 @@
     <div id="sidebar-tabs" role="tablist">
         <div id="sidebar-actions" class="sidebar-inner-container">
             <SidebarTab name="save" path="/" icon={IconDownload} />
+            <SidebarTab name="asr" path="/asr" icon={IconMicrophone} beta />
             {#if !$settings.appearance.hideRemuxTab}
                 <SidebarTab name="remux" path="/remux" icon={IconRepeat} beta />
             {/if}

@@ -20,5 +20,15 @@
     "tutorial.intro": "чтобы удобно сохранять файлы на ios, придётся использовать команду siri в меню обмена.",
     "tutorial.outro": "эти команды siri будут работать только из приложения кобальта, использовать их из других приложений не получится.",
     "tooltip.captcha": "cloudflare turnstile проверяет, что ты не бот. подожди, пожалуйста!",
-    "label.community_instance": "инстанс сообщества"
+    "label.community_instance": "инстанс сообщества",
+    "asr.title": "Speech to Text",
+    "asr.description": "Enter Bilibili video link to transcribe",
+    "button.start": "Start",
+    "button.stop": "Stop",
+    "button.copy": "Copy",
+    "result.title": "Transcription",
+    "error.invalid_url": "Invalid Bilibili URL",
+    "error.fetch_failed": "Failed to fetch video",
+    "error.audio_failed": "Failed to get audio",
+    "error.transcribe_failed": "Transcription failed"
 }

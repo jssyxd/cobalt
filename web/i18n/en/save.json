@@ -23,5 +23,17 @@
 
     "label.community_instance": "community instance",
 
-    "tooltip.captcha": "cloudflare turnstile is checking if you're not a bot, please wait!"
+    "tooltip.captcha": "cloudflare turnstile is checking if you're not a bot, please wait!",
+
+    "asr.title": "语音转文字",
+    "asr.description": "输入B站视频链接，自动转写语音内容",
+    "input.placeholder": "请输入B站视频链接",
+    "button.start": "开始转写",
+    "button.stop": "停止",
+    "button.copy": "复制",
+    "result.title": "转写结果",
+    "error.invalid_url": "请输入有效的B站视频链接",
+    "error.fetch_failed": "获取视频信息失败",
+    "error.audio_failed": "获取音频失败",
+    "error.transcribe_failed": "语音识别失败"
 }

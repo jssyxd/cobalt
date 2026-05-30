@@ -157,5 +157,6 @@
 
     "tabs": "navigation",
     "tabs.hide_remux": "hide the remux tab",
-    "tabs.hide_remux.description": "if you don't use the remux tool, you can hide it from the navigation bar."
+    "tabs.hide_remux.description": "if you don't use the remux tool, you can hide it from the navigation bar.",
+    "tabs.asr": "speech to text"
 }
