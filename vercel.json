@@ -3,11 +3,5 @@
   "buildCommand": "pnpm install && pnpm build",
   "installCommand": "pnpm install",
   "framework": "sveltekit",
-  "outputDirectory": "web/build",
-  "functions": {
-    "web/build/**/*.js": {
-      "runtime": "nodejs22.x",
-      "maxDuration": 10
-    }
-  }
+  "outputDirectory": "web/build"
 }
