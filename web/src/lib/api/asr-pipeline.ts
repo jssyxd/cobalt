@@ -1,6 +1,7 @@
 /**
  * ASR Pipeline
  * 处理音频获取、分块和转写
+ * 支持服务端API获取音频URL
  */
 
 import {
@@ -10,6 +11,8 @@ import {
     type BilibiliVideoInfo,
     type BilibiliAudioInfo
 } from "./bilibili";
+
+import { getAudioUrlFromServer } from "./bilibili-server";
 
 import {
     transcribeAudio,
@@ -50,21 +53,19 @@ export class ASRPipeline {
      */
     private updateProgress(progress: Partial<ASRProgress>): void {
         this.callbacks.onProgress({
-            status: "idle",
-            progress: 0,
-            message: "",
+            ...this.callbacks,
             ...progress
         } as ASRProgress);
     }
 
     /**
-     * 从URL开始处理
+     * 处理视频URL
      */
     async processUrl(url: string): Promise<void> {
         this.abortController = new AbortController();
 
         try {
-            // 1. 解析URL获取BVID
+            // 1. 解析URL
             this.updateProgress({
                 status: "fetching_info",
                 progress: 10,
@@ -95,20 +96,46 @@ export class ASRPipeline {
                 videoInfo
             });
 
-            // 3. 获取音频流地址
+            // 3. 首先尝试通过服务端API获取音频URL
             this.updateProgress({
                 status: "downloading",
-                progress: 40,
-                message: "获取音频流..."
+                progress: 35,
+                message: "通过服务端获取音频..."
             });
 
-            const audioInfo = await getAudioStream(bvid, videoInfo.cid);
-            if (!audioInfo) {
+            let audioUrl: string | null = null;
+            
+            try {
+                const serverResult = await getAudioUrlFromServer(bvid);
+                if (serverResult.success && serverResult.audioUrl) {
+                    audioUrl = serverResult.audioUrl;
+                    console.log("Got audio URL from server API");
+                }
+            } catch (e) {
+                console.log("Server API failed, trying direct API...");
+            }
+
+            // 4. 如果服务端API失败，尝试直接API获取
+            if (!audioUrl) {
+                this.updateProgress({
+                    status: "downloading",
+                    progress: 40,
+                    message: "尝试直接获取音频流..."
+                });
+
+                const audioInfo = await getAudioStream(bvid, videoInfo.cid);
+                if (audioInfo) {
+                    audioUrl = audioInfo.audioUrl;
+                }
+            }
+
+            // 5. 如果都无法获取，抛出错误
+            if (!audioUrl) {
                 throw new Error("无法获取音频流，可能视频需要登录或已下架");
             }
 
-            // 4. 下载并转写音频
-            await this.downloadAndTranscribe(audioInfo.audioUrl, videoInfo);
+            // 6. 下载并转写音频
+            await this.downloadAndTranscribe(audioUrl, videoInfo);
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "未知错误";
@@ -149,32 +176,35 @@ export class ASRPipeline {
         }
 
         // 获取音频数据
+        const audioData = await audioResponse.arrayBuffer();
+
         this.updateProgress({
             status: "transcribing",
             progress: 70,
-            message: "正在转写，请稍候..."
+            message: "正在转写音频..."
         });
 
-        const audioBlob = await audioResponse.blob();
+        // 转写音频
+        const result = await transcribeAudio(
+            audioData,
+            this.language,
+            (progress) => {
+                this.updateProgress({
+                    status: "transcribing",
+                    progress: 70 + progress * 0.25,
+                    message: `转写中... ${Math.round(progress * 100)}%`
+                });
+            }
+        );
 
-        this.updateProgress({
-            status: "transcribing",
-            progress: 80,
-            message: "调用语音识别API..."
-        });
-
-        // 调用Whisper API转写
-        const transcription = await transcribeAudio(audioBlob, this.language);
-
-        // 完成
         this.updateProgress({
             status: "completed",
             progress: 100,
             message: "转写完成",
-            transcription
+            transcription: result
         });
 
-        this.callbacks.onComplete(transcription);
+        this.callbacks.onComplete(result);
     }
 
     /**
@@ -186,19 +216,4 @@ export class ASRPipeline {
             this.abortController = null;
         }
     }
-}
-
-/**
- * 创建默认的ASR回调
- */
-export function createDefaultCallbacks(
-    onProgress?: (progress: ASRProgress) => void,
-    onComplete?: (result: WhisperTranscription) => void,
-    onError?: (error: Error) => void
-): ASRCallbacks {
-    return {
-        onProgress: onProgress || ((p) => console.log("ASR Progress:", p)),
-        onComplete: onComplete || ((r) => console.log("ASR Result:", r)),
-        onError: onError || ((e) => console.error("ASR Error:", e))
-    };
 }
