@@ -20,9 +20,13 @@ const resolveGitDir = (gitPath) => {
     if (!existsSync(gitPath) || !gitPath.endsWith('.git')) {
         return gitPath;
     }
-    const content = readFileSync(gitPath, 'utf8');
-    if (content.startsWith('gitdir: ')) {
-        return content.slice(8).trim();
+    try {
+        const content = readFileSync(gitPath, 'utf8');
+        if (content.startsWith('gitdir: ')) {
+            return content.slice(8).trim();
+        }
+    } catch {
+        // Ignore errors
     }
     return gitPath;
 }
@@ -30,20 +34,29 @@ const resolveGitDir = (gitPath) => {
 const gitRoot = resolveGitDir(findFile('.git'));
 const pack = findFile('package.json');
 
-const readGit = (filename) => {
+const readGit = async (filename) => {
     if (!gitRoot) {
-        throw 'no git repository root found';
+        // Return null for Vercel or other CI environments
+        return null;
     }
 
-    return readFile(join(gitRoot, filename), 'utf8');
+    try {
+        return await readFile(join(gitRoot, filename), 'utf8');
+    } catch {
+        return null;
+    }
 }
 
 export const getCommit = async () => {
-    return (await readGit('.git/logs/HEAD'))
-            ?.split('\n')
-            ?.filter(String)
-            ?.pop()
-            ?.split(' ')[1];
+    const content = await readGit('.git/logs/HEAD');
+    if (!content) {
+        return process.env.VERCEL_GIT_COMMIT_SHA || 'unknown';
+    }
+    return content
+        ?.split('\n')
+        ?.filter(String)
+        ?.pop()
+        ?.split(' ')[1] || process.env.VERCEL_GIT_COMMIT_SHA || 'unknown';
 }
 
 export const getBranch = async () => {
@@ -55,9 +68,17 @@ export const getBranch = async () => {
         return process.env.WORKERS_CI_BRANCH;
     }
 
-    return (await readGit('.git/HEAD'))
-            ?.replace(/^ref: refs\/heads\//, '')
-            ?.trim();
+    if (process.env.VERCEL_GIT_COMMIT_REF) {
+        return process.env.VERCEL_GIT_COMMIT_REF;
+    }
+
+    const content = await readGit('.git/HEAD');
+    if (!content) {
+        return 'main';
+    }
+    return content
+        ?.replace(/^ref: refs\/heads\//, '')
+        ?.trim() || 'main';
 }
 
 export const getRemote = async () => {
@@ -67,10 +88,15 @@ export const getRemote = async () => {
     }
     
     try {
-        let remote = (await readGit('.git/config'))
-                        ?.split('\n')
-                        ?.find(line => line.includes('url = '))
-                        ?.split('url = ')[1];
+        const content = await readGit('.git/config');
+        if (!content) {
+            throw 'could not read git config';
+        }
+
+        let remote = content
+            ?.split('\n')
+            ?.find(line => line.includes('url = '))
+            ?.split('url = ')[1];
 
         if (remote?.startsWith('git@')) {
             remote = remote.split(':')[1];
@@ -93,12 +119,15 @@ export const getRemote = async () => {
 
 export const getVersion = async () => {
     if (!pack) {
-        throw 'no package root found';
+        return '0.0.0';
     }
 
-    const { version } = JSON.parse(
-        await readFile(join(pack, 'package.json'), 'utf8')
-    );
-
-    return version;
+    try {
+        const { version } = JSON.parse(
+            await readFile(join(pack, 'package.json'), 'utf8')
+        );
+        return version || '0.0.0';
+    } catch {
+        return '0.0.0';
+    }
 }
