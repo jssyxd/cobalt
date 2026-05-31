@@ -21,6 +21,15 @@
         { code: "ko", name: "한국어" },
     ];
 
+    // Static fallback text
+    const staticTitle = "Speech to Text";
+    const staticDesc = "Convert Bilibili video audio to text using AI";
+    const staticPlaceholder = "Paste Bilibili video URL here";
+    const staticStartBtn = "Start Transcription";
+    const staticStopBtn = "Stop";
+    const staticCopyBtn = "Copy";
+    const staticResultTitle = "Transcription Result";
+
     function isValidUrl(url: string): boolean {
         try {
             return /^https?\:/i.test(new URL(url).protocol);
@@ -83,18 +92,18 @@
 </script>
 
 <svelte:head>
-    <title>{$t("asr.title")} - Cobalt</title>
+    <title>{staticTitle} - Cobalt</title>
 </svelte:head>
 
 <div class="asr-container center-column-container">
-    <h1 class="asr-title">{$t("asr.title")}</h1>
-    <p class="asr-description">{$t("asr.description")}</p>
+    <h1 class="asr-title">{staticTitle}</h1>
+    <p class="asr-description">{staticDesc}</p>
 
     <div class="asr-input-section">
         <input
             type="text"
             bind:value={videoUrl}
-            placeholder={$t("asr.input.placeholder")}
+            placeholder={staticPlaceholder}
             class="asr-input"
             disabled={isProcessing}
         />
@@ -107,7 +116,7 @@
 
         {#if isProcessing}
             <button class="asr-button stop" onclick={stopTranscription}>
-                {$t("asr.button.stop")}
+                {staticStopBtn}
             </button>
         {:else}
             <button 
@@ -115,7 +124,7 @@
                 onclick={startTranscription}
                 disabled={!isValidUrl(videoUrl) || !isBilibiliUrl(videoUrl)}
             >
-                {$t("asr.button.start")}
+                {staticStartBtn}
             </button>
         {/if}
     </div>
@@ -138,9 +147,9 @@
     {#if transcription}
         <div class="asr-result">
             <div class="result-header">
-                <h2>{$t("asr.result.title")}</h2>
+                <h2>{staticResultTitle}</h2>
                 <button class="copy-button" onclick={copyTranscription}>
-                    {$t("asr.button.copy")}
+                    {staticCopyBtn}
                 </button>
             </div>
             <div class="result-content">
