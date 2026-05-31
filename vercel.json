@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "pnpm install && pnpm -F @imput/cobalt-web build",
+  "buildCommand": "echo 'Using prebuilt files'",
   "installCommand": "pnpm install",
-  "framework": "sveltekit",
+  "framework": null,
   "outputDirectory": "web/build"
 }
