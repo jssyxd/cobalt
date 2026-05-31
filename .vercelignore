@@ -1,4 +1,0 @@
-# Exclude JS files - they are static assets
-**/*.js
-**/*.mjs
-**/_app/
