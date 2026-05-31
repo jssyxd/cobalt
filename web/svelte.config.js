@@ -1,5 +1,5 @@
 import "dotenv/config";
-import adapter from "@sveltejs/adapter-vercel";
+import adapter from "@sveltejs/adapter-static";
 
 import { mdsvex } from "mdsvex";
 import { fileURLToPath } from "node:url";
@@ -38,8 +38,15 @@ const config = {
     ],
     kit: {
         adapter: adapter({
-            runtime: 'nodejs22.x'
+            pages: 'build',
+            assets: 'build',
+            fallback: '404.html',
+            precompress: false,
+            strict: true
         }),
+        prerender: {
+            handleHttpError: 'warn'
+        },
         csp: {
             mode: "hash",
             directives: {
