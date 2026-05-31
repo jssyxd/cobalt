@@ -1,0 +1,20 @@
+{
+    "title": "Speech to Text",
+    "description": "Convert Bilibili video audio to text using AI",
+    "input": {
+        "placeholder": "Paste Bilibili video URL here"
+    },
+    "button": {
+        "start": "Start Transcription",
+        "stop": "Stop",
+        "copy": "Copy"
+    },
+    "result": {
+        "title": "Transcription Result"
+    },
+    "error": {
+        "invalidUrl": "Please enter a valid Bilibili video URL",
+        "fetchFailed": "Failed to fetch video. Please check if the video is public and you are logged in.",
+        "transcribeFailed": "Transcription failed. Please try again."
+    }
+}
