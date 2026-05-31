@@ -3,5 +3,5 @@
   "buildCommand": "pnpm install && pnpm build",
   "installCommand": "pnpm install",
   "framework": "sveltekit",
-  "outputDirectory": ".vercel/output"
+  "outputDirectory": "web/.vercel/output/static"
 }
